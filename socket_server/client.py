@@ -2,9 +2,8 @@
 import time
 import logging
 import socket
-import argparse
 
-from socket_server.message import Message, MessageParser, JSONMessage, TextMessage
+from socket_server.message import Message, MessageParser
 from socket_server.server import get_socket_server_family, get_socket_server_type, SOCKET_SERVER_TCP
 
 
