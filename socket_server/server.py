@@ -241,7 +241,7 @@ class _SocketConnectionHandlerThread(threading.Thread):
                         self.close()
                     elif isinstance(message, EventMessage) and message.event_name in self.handlers['event']:
                         self._handle_handler_response(message, self.handlers['event'][message.event_name])
-                    if isinstance(message, TextMessage) and self.handlers['text']:
+                    elif isinstance(message, TextMessage) and self.handlers['text']:
                         self._handle_handler_response(message, self.handlers['text'])
                     elif isinstance(message, JSONMessage) and self.handlers['json']:
                         self._handle_handler_response(message, self.handlers['json'])
