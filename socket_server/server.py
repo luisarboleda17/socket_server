@@ -9,7 +9,7 @@ import signal
 import threading
 import multiprocessing
 
-from socket_server.message import MessageParser, TextMessage, JSONMessage, EventMessage, Message
+from socket_server.message import MessageParser, TextMessage, JSONMessage, EventMessage, Message, CloseMessage
 
 
 _DEFAULT_HOST = '127.0.0.1'
@@ -192,6 +192,9 @@ class _SocketConnectionHandlerThread(threading.Thread):
 
         self.message_parser = MessageParser()
 
+    def close(self):
+        self.client_socket.close()
+
     @staticmethod
     def _map_result_to_message(result):
         if not result:
@@ -233,10 +236,13 @@ class _SocketConnectionHandlerThread(threading.Thread):
                 self.message_parser.received_data(new_data)
 
                 for message in self.message_parser.parse_messages():
-                    if isinstance(message, TextMessage) and self.handlers['text']:
-                        self._handle_handler_response(message, self.handlers['text'])
+                    # First check custom messages, then raw messages
+                    if isinstance(message, CloseMessage):
+                        self.close()
                     elif isinstance(message, EventMessage) and message.event_name in self.handlers['event']:
                         self._handle_handler_response(message, self.handlers['event'][message.event_name])
+                    if isinstance(message, TextMessage) and self.handlers['text']:
+                        self._handle_handler_response(message, self.handlers['text'])
                     elif isinstance(message, JSONMessage) and self.handlers['json']:
                         self._handle_handler_response(message, self.handlers['json'])
                     else:

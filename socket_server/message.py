@@ -126,6 +126,13 @@ class TextMessage(Message):
         self._message = decoded_text
 
 
+class CloseMessage(TextMessage):
+    CLOSE_CONTENT = '---CLOSE---'
+
+    def __init__(self):
+        super().__init__(CloseMessage.CLOSE_CONTENT)
+
+
 class JSONMessage(Message):
     @property
     def encoded_message(self):

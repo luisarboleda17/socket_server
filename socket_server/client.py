@@ -3,7 +3,7 @@ import time
 import logging
 import socket
 
-from socket_server.message import Message, MessageParser
+from socket_server.message import Message, MessageParser, CloseMessage
 from socket_server.server import get_socket_server_family, get_socket_server_type, SOCKET_SERVER_TCP
 
 
@@ -39,7 +39,11 @@ class SocketClient:
                 self.message_parser.received_data(new_data)
 
                 for message in self.message_parser.parse_messages():
-                    yield message
+                    if isinstance(message, CloseMessage):
+                        self.close()
+                        break
+                    else:
+                        yield message
 
             except socket.timeout:
                 continue
