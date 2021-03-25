@@ -54,6 +54,7 @@ class SocketServer:
             'json': None,
             'event': {},
         }
+        self._on_startup = None
         self._workers = [None] * workers_quantity  # Create workers list
 
     def json_handler(self, handler):
@@ -86,6 +87,15 @@ class SocketServer:
             return handler
         return decorator
 
+    def on_startup(self, handler):
+        """Set on startup function.
+
+        :param handler:
+        :return:
+        """
+        self._on_startup = handler
+        return handler
+
     def _start_worker_process(self, worker_id: int):
         if self._workers[worker_id]:
             self._workers[worker_id].terminate()
@@ -94,6 +104,7 @@ class SocketServer:
             self.address,
             self.socket_type,
             self._handlers,
+            self._on_startup,
             name=f'SocketServerWorker-{worker_id}',
         )
         worker_process.daemon = True
@@ -135,6 +146,7 @@ class _SocketWorkerProcess(multiprocessing.Process):
         address,
         socket_type: str,
         handlers: dict,
+        on_startup=None,
         *args,
         **kwargs
     ):
@@ -142,12 +154,17 @@ class _SocketWorkerProcess(multiprocessing.Process):
         self.address = address
         self.socket_type = socket_type
         self.handlers = handlers
+        self.on_startup = on_startup
 
         self._kill_event = threading.Event()
 
     def run(self):
         signal.signal(signal.SIGINT, self._handle_terminate_signal)
         signal.signal(signal.SIGTERM, self._handle_terminate_signal)
+
+        # Executes startup function
+        if self.on_startup:
+            self.on_startup()
 
         with socket.socket(get_socket_server_family(self.address), get_socket_server_type(self.socket_type)) as sock:
 
