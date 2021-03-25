@@ -1,5 +1,7 @@
 
 import json
+import datetime
+import decimal
 
 
 class Message:
@@ -60,7 +62,7 @@ class Message:
     def encode_dict(value: dict):
         if not value:
             return None, 0
-        encoded_value = json.dumps(value).encode('utf-8')
+        encoded_value = json.dumps(value, default=JSONMessage._serialize_json).encode('utf-8')
         return encoded_value, len(encoded_value)
 
     @staticmethod
@@ -71,6 +73,17 @@ class Message:
     def decode_dict(b_value: bytes):
         decoded = json.loads(b_value.decode('utf-8'))
         return decoded
+
+    @staticmethod
+    def _serialize_json(value):
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        elif isinstance(value, datetime.date):
+            return value.isoformat()
+        elif isinstance(value, decimal.Decimal):
+            return str(value)
+        else:
+            raise TypeError('Unknown type')
 
     def to_message(self, message_class):
         message = message_class()
