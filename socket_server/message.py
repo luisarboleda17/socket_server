@@ -132,6 +132,10 @@ class CloseMessage(TextMessage):
     def __init__(self):
         super().__init__(CloseMessage.CLOSE_CONTENT)
 
+    @staticmethod
+    def is_close_message(content: str):
+        return content == CloseMessage.CLOSE_CONTENT
+
 
 class JSONMessage(Message):
     @property
@@ -237,7 +241,12 @@ class MessageParser:
         message = Message(content_type, message_content)
 
         if content_type == 'text/plain':
-            return TextMessage.from_message(message)
+            text_message = TextMessage.from_message(message)
+
+            if CloseMessage.is_close_message(text_message.message):
+                return CloseMessage()
+            else:
+                return text_message
         elif content_type == 'application/json':
             json_message = JSONMessage.from_message(message)
 
