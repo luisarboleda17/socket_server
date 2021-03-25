@@ -53,7 +53,7 @@ class SocketClient:
 
                 for message in self.message_parser.parse_messages():
                     if isinstance(message, CloseMessage):
-                        self.close()
+                        self.close(terminate=True)
                         break
                     else:
                         yield message
