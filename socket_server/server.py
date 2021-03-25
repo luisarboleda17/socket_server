@@ -191,9 +191,23 @@ class _SocketConnectionHandlerThread(threading.Thread):
         self.handlers = handlers
 
         self.message_parser = MessageParser()
+        self._listen_socket = True
 
-    def close(self):
+    def close(self, terminate=False):
+        if not self.client_socket:
+            return
+
+        logging.info(f'[{self.worker_name}]: Closing connection to client {self.address}')
+
+        if not terminate:
+            try:
+                self.send(CloseMessage())
+            except:
+                pass
+
+        self._listen_socket = False
         self.client_socket.close()
+        self.client_socket = None
 
     @staticmethod
     def _map_result_to_message(result):
@@ -208,11 +222,16 @@ class _SocketConnectionHandlerThread(threading.Thread):
             return TextMessage(str(result))
 
     def send(self, message):
+        """Send message to client socket
+
+        :param message:
+        :return:
+        """
         if not message:
             return
         self.client_socket.sendall(message.encode())
 
-    def _handle_handler_response(self, message, handler):
+    def _handle_received_message(self, message, handler):
         handler_result = handler(message)
 
         if not handler_result:
@@ -220,17 +239,24 @@ class _SocketConnectionHandlerThread(threading.Thread):
 
         if inspect.isgenerator(handler_result):
             for result in handler_result:
-                self.send(self._map_result_to_message(result))
+                if isinstance(result, CloseMessage):
+                    self.close()
+                    break
+                else:
+                    self.send(self._map_result_to_message(result))
+
         else:
-            self.send(self._map_result_to_message(handler_result))
+            if isinstance(handler_result, CloseMessage):
+                self.close()
+            else:
+                self.send(self._map_result_to_message(handler_result))
 
     def run(self):
-        client_host, client_port = self.address
-        logging.info(f'[{self.worker_name}]: Client {client_host}:{client_port} connected')
+        logging.info(f'[{self.worker_name}]: Client {self.address} connected')
 
         self.client_socket.settimeout(0.1)
 
-        while not self.kill_event.is_set():
+        while not self.kill_event.is_set() and self._listen_socket:
             try:
                 new_data = self.client_socket.recv(65536)  # Read 64KB at time 65536
                 self.message_parser.received_data(new_data)
@@ -238,13 +264,14 @@ class _SocketConnectionHandlerThread(threading.Thread):
                 for message in self.message_parser.parse_messages():
                     # First check custom messages, then raw messages
                     if isinstance(message, CloseMessage):
-                        self.close()
+                        self.close(terminate=True)
+                        break
                     elif isinstance(message, EventMessage) and message.event_name in self.handlers['event']:
-                        self._handle_handler_response(message, self.handlers['event'][message.event_name])
+                        self._handle_received_message(message, self.handlers['event'][message.event_name])
                     elif isinstance(message, TextMessage) and self.handlers['text']:
-                        self._handle_handler_response(message, self.handlers['text'])
+                        self._handle_received_message(message, self.handlers['text'])
                     elif isinstance(message, JSONMessage) and self.handlers['json']:
-                        self._handle_handler_response(message, self.handlers['json'])
+                        self._handle_received_message(message, self.handlers['json'])
                     else:
                         logging.warning(f'[{self.worker_name}]: No handler registered for message type {message}')
             except socket.timeout:
@@ -253,5 +280,3 @@ class _SocketConnectionHandlerThread(threading.Thread):
             if len(new_data) == 0:
                 logging.debug(f'[{self.worker_name}]: Waiting 0.1s')
                 time.sleep(0.1)
-
-        self.client_socket.close()
