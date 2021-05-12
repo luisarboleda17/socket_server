@@ -6,7 +6,7 @@ README = (HERE / "README.rst").read_text()
 
 setuptools.setup(
     name="socket_server",
-    version="0.0.1",
+    version="0.0.1.dev0",
     description="",
     long_description=README,
     long_description_content_type="text/x-rst",
