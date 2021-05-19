@@ -28,13 +28,13 @@ class SocketClient:
         self.socket.connect(self.address)
         self.socket.settimeout(0.1)  # Avoid busy waiting
         self.socket.setblocking(True)
-        logging.info(f'Connected to server {self.address}')
+        logging.info(f'[SocketClient]: Connected to server {self.address}')
 
     def close(self, terminate=False):
         if not self.socket:
             return
 
-        logging.info(f'Closing connection to client {self.address}')
+        logging.info(f'[SocketClient]: Closing connection to client {self.address}')
         if not terminate:
             try:
                 self.send_message(CloseMessage())
@@ -53,6 +53,7 @@ class SocketClient:
 
                 for message in self.message_parser.parse_messages():
                     if isinstance(message, CloseMessage):
+                        logging.debug(f'[SocketClient]: Close message received')
                         self.close(terminate=True)
                         break
                     else:
@@ -65,7 +66,7 @@ class SocketClient:
                 raise exc
 
             if len(new_data) == 0:
-                logging.debug('Waiting 0.1s')
+                logging.debug('[SocketClient]: Waiting 0.1s')
                 time.sleep(0.1)
 
     def send_message(self, message: Message):
